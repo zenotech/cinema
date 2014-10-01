@@ -321,6 +321,31 @@ cinema.views.VisualizationCanvasWidget = Backbone.View.extend({
      * the length of the composited image in that dimension.
      */
     mapToImageCoordinates: function (coords) {
-        // TODO
+        var compositeCanvas = this.$('.c-vis-composite-buffer')[0],
+            iw = compositeCanvas.width,
+            ih = compositeCanvas.height;
+
+        var zoomLevel = this.viewpoint.get('zoom'),
+            drawingCenter = this.viewpoint.get('center');
+
+        var tw = Math.floor(iw * zoomLevel),
+        th = Math.floor(ih * zoomLevel);
+
+        var tx = drawingCenter[0] - (tw / 2),
+            ty = drawingCenter[1] - (th / 2);
+
+        var oX = ((coords[0] - tx) / tw) * iw;
+        if (oX < 0) oX = 0;
+        if (oX > iw) oX = iw;
+        var oY = ((coords[1] - ty) / th) * ih;
+        if (oY < 0) oY = 0;
+        if (oY > ih) oY = ih;
+        //console.log(drawingCenter, zoomLevel, coords, oX, oY);
+
+        return [oX, oY];
+    },
+
+    mouseOver: function (coords) {
     }
+
 });

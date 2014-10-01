@@ -26,7 +26,8 @@
                 keyModifiers: cinema.keyModifiers.SHIFT
             }).enableDragRotation({
                 keyModifiers: null
-            }),
+            }).enableMouseMotion(
+            ),
             compositeTools = new cinema.views.CompositeToolsWidget({
                 el: $('.c-tools-panel', container),
                 model: compositeModel,
@@ -40,7 +41,8 @@
                 model: compositeModel,
                 toolbarSelector: '.c-panel-toolbar',
                 viewport: renderer
-            }),
+            })
+
             controlList = [
                 { position: 'left',  key: 'rendering', icon: 'icon-picture',   title: 'Rendering'},
                 { position: 'right', key: 'tools',     icon: 'icon-tools', title: 'Tools' }

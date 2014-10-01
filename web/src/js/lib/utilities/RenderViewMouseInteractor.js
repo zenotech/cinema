@@ -183,4 +183,19 @@
 
         return this;
     };
+
+    prototype.enableMouseMotion = function (params) {
+        params = params || {};
+
+        this.renderView.off('c:mousemove', null, this).on('c:mousemove', function (evt) {
+            var imgCoords = this.renderView.mapToImageCoordinates([evt.offsetX, evt.offsetY]);
+            var dataResult = this.renderView.mouseOver(imgCoords);
+            if (dataResult) {
+                console.log(dataResult.field, dataResult.value);
+            }
+        }, this);
+
+        return this;
+    };
+
 }());

@@ -17,7 +17,7 @@ cinema.views.VisualizationCanvasWidgetLight = cinema.views.VisualizationCanvasWi
         this.lightPosition = [-1, 1, 0];
         this.worldLight = new Vector(-1, 0, 1);
         this.LUT = this._RainbowColor;
-        this.lightColor = new Vector(1, 1, 1);
+        this.lightColor = [1, 1, 1];
         this.lightTerms = { ka: 0.1, kd: 0.6, ks: 0.3, alpha: 20.0 };
         this._forceRedraw = false;
         this.eye = new Vector(0, 0, 1);
@@ -33,6 +33,7 @@ cinema.views.VisualizationCanvasWidgetLight = cinema.views.VisualizationCanvasWi
             //console.log("?",270.0, theta, " : ", res[0].toFixed(3), res[1].toFixed(3), res[2].toFixed(3));
         }
         */
+        //this.mouseDetails = {};
     },
 
     _spherical2CartesianN: function (phi, theta) {
@@ -95,7 +96,7 @@ cinema.views.VisualizationCanvasWidgetLight = cinema.views.VisualizationCanvasWi
     },
 
     setLightColor: function (lightColor) {
-        this.lightColor = new Vector(lightColor[0], lightColor[1], lightColor[2]);
+        this.lightColor = [lightColor[0], lightColor[1], lightColor[2]];
     },
 
     setLightTerms: function (terms) {
@@ -125,13 +126,10 @@ cinema.views.VisualizationCanvasWidgetLight = cinema.views.VisualizationCanvasWi
 
         if (renderTerms.canLight) {
             //Get all terms required for color of this pixel
-            var vnX = this._realValueOfPixel('vnX', renderTerms),
-                vnY = this._realValueOfPixel('vnY', renderTerms),
-                vnZ = this._realValueOfPixel('vnZ', renderTerms),
-                value = this._valueOfPixel('layer', renderTerms);
-
-            //to debug normals, use this
-            //return [(nX+1)*128,(nY+1)*128,(nZ+1)*128,255];
+            var vnX = (this._valueOfPixel('vnX', renderTerms)-0.5)*2.0,
+            vnY = (this._valueOfPixel('vnY', renderTerms)-0.5)*2.0,
+            vnZ = (this._valueOfPixel('vnZ', renderTerms)-0.5)*2.0,
+            value = this._valueOfPixel('layer', renderTerms);
 
             //through LUT
             var toColor = value;
@@ -141,25 +139,24 @@ cinema.views.VisualizationCanvasWidgetLight = cinema.views.VisualizationCanvasWi
             } else {
                 color = this.LUT(toColor);
             }
-            //return [color[0], color[1], color[2], 255]
+            //return [color[0], color[1], color[2], 255];
 
-            var Color = Vector.fromArray(color);
+            var Color = [color[0], color[1], color[2]];
 
             //apply lighting
             var ka = this.lightTerms.ka;
             var lightColor = this.lightColor;
             var ambientTerm = ka;
-            var ambientColor = lightColor.multiply(255).multiply(ka);
-            //return [ambientColor.x, ambientColor.y, ambientColor.z, 255.0];
+            var ambientColor = [lightColor[0]*ka*255, lightColor[1]*ka*255, lightColor[2]*ka*255];
+            //return [ambientColor[0], ambientColor[1], ambientColor[2], 255];
 
             //todo: foreach light
             var lightPosition = this.worldlight;
             var normal = new Vector(vnX, vnY, vnZ).unit();
-
             var kd = this.lightTerms.kd;
             var diffuseTerm = kd * lightPosition.dot(normal);
-            var diffuseColor = Color.multiply(diffuseTerm);
-            //return [diffuseColor.x, diffuseColor.y, diffuseColor.z, 255];
+            var diffuseColor = [Color[0]*diffuseTerm, Color[1]*diffuseTerm, Color[2]*diffuseTerm];
+            //return [diffuseColor[0], diffuseColor[1], diffuseColor[2], 255];
 
             //todo: foreach light
             var viewPosition = this.eye;
@@ -167,11 +164,13 @@ cinema.views.VisualizationCanvasWidgetLight = cinema.views.VisualizationCanvasWi
             var ks = this.lightTerms.ks;
             var alpha = this.lightTerms.alpha;
             var specularTerm = ks * Math.pow(R.dot(viewPosition), alpha);
-            var specularColor = lightColor.multiply(specularTerm * 255);
+            var specularColor = [lightColor[0]*specularTerm*255, lightColor[1]*specularTerm*255, lightColor[2]*specularTerm*255];
             //return [specularColor.x, specularColor.y, specularColor.z, 255];
 
-            var phongcolor = ambientColor.add(diffuseColor.add(specularColor));
-            var litcolor = [phongcolor.x, phongcolor.y, phongcolor.z, 255.0];
+            var phongcolor = [ambientColor[0]+diffuseColor[0]+specularColor[0],
+                              ambientColor[1]+diffuseColor[1]+specularColor[1],
+                              ambientColor[2]+diffuseColor[2]+specularColor[2]];
+            var litcolor = [phongcolor[0], phongcolor[1], phongcolor[2], 255];
             return litcolor;
         }
 
@@ -229,6 +228,7 @@ cinema.views.VisualizationCanvasWidgetLight = cinema.views.VisualizationCanvasWi
         if (!_.has(this.compositeCache, data.key)) {
             this._computeCompositeInfo(data);
         }
+        this.saveddata = data; //TODO: this is lame, using it for mouseOver
 
         var layer,
             field,
@@ -373,7 +373,6 @@ cinema.views.VisualizationCanvasWidgetLight = cinema.views.VisualizationCanvasWi
                     }
 
                     var frontColor = this._colorPixel(renderTerms);
-
                     frontPixels[localIdx] = frontColor[0];
                     frontPixels[localIdx + 1] = frontColor[1];
                     frontPixels[localIdx + 2] = frontColor[2];
@@ -417,10 +416,94 @@ cinema.views.VisualizationCanvasWidgetLight = cinema.views.VisualizationCanvasWi
         return this;
     },
 
-
     forceRedraw: function () {
         this._forceRedraw = true;
         this.showViewpoint();
-    }
+    },
+
+    mouseOver: function (coords) {
+        var data = this.saveddata; //TODO: lame, see above
+        if (!data) {
+            //console.log("NODATA");
+            return;
+        }
+        if (!_.has(this.compositeCache, data.key)) {
+            this._computeCompositeInfo(data);
+        }
+
+        var layer,
+            field,
+            spriteCanvas = this.$('.c-vis-spritesheet-buffer')[0],
+            dim = this.model.getImageSize(),
+            spritesheetDim = this.model.getSpriteImageSize(),
+            spriteCtx = spriteCanvas.getContext('2d'),
+            composite = this.compositeCache[data.key];
+
+        $(spriteCanvas).attr({
+            width: spritesheetDim[0],
+            height: spritesheetDim[1]
+        });
+
+        // Fill full spritesheet buffer with raw image data
+        spriteCtx.drawImage(data.image, 0, 0);
+
+        var pixelBuffer = spriteCtx.getImageData(0, 0, spritesheetDim[0], spritesheetDim[1]).data;
+        var isize = dim[0] * dim[1] * 4;
+
+        var xs = Math.floor(coords[0]);
+        var ys = Math.floor(coords[1]);
+
+        var pixelSought = ys*dim[0] + xs;
+        var i, pixelAt;
+        pixelAt = 0;
+        for (i = 0; i < composite.length && pixelAt < pixelSought;) {
+            var order = composite[i];
+            if (order > 0) {
+                i += order;
+                pixelAt += order;
+            } else {
+                i += 1;
+                pixelAt += 1;
+            }
+        }
+        if (pixelAt === pixelSought) {
+            var order = composite[i];
+            var orderOffset = this.orderMapping[order];
+            if (orderOffset > -1) {
+                var localIdx = 4 * pixelAt;
+                orderOffset *= isize;
+                orderOffset += localIdx;
+                var lf = this._findLayerAndField(order);
+                layer = lf[0];
+                field = lf[1];
+                var fname = this.model.attributes.metadata.fields[field];
+                if (fname in this.model.attributes.metadata.ranges) {
+                    var renderTerms = {}
+                    renderTerms[fname] = [ pixelBuffer[orderOffset + 0],
+                                           pixelBuffer[orderOffset + 1],
+                                           pixelBuffer[orderOffset + 2] ];
+
+                    if (!(renderTerms[fname][0] === 0 &&
+                          renderTerms[fname][1] === 0 &&
+                          renderTerms[fname][2] === 0)) {
+                        var res = this._realValueOfPixel(fname, renderTerms);
+                        console.log(coords, xs, ys, pixelSought, fname, res);
+                        var mouseDetails = {field:fname, value:res};
+                        return mouseDetails;
+                    }
+                } else {
+                    //console.log(fname, " not found");
+                }
+            } else {
+                //console.log("Bad layeroffset ", order, orderOffset, this.orderMapping);
+            }
+        } else {
+            //console.log("PIX NOT FOUND", pixelAt, "!=", pixelSought);
+        }
+
+        if (!found) {
+            //console.log(coords, xs, ys, pixelSought);
+        }
+    },
 
 });
